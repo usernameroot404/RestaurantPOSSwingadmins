@@ -1,0 +1,11 @@
+#tes update 4
+
+mvn clean compile exec:java
+
+gunakan kode diatas di terminal 
+
+mvn clean : Menghapus hasil build sebelumnya.
+mvn compile : Mengkompilasi proyek.
+exec:java : Menjalankan aplikasi
+
+
