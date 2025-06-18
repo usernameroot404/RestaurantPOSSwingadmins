@@ -15,6 +15,15 @@ public class Order {
     private double total;
     private String status = "pending";
     
+    @Column(name = "order_type")
+    private String orderType; // "DINE_IN" or "TAKE_AWAY"
+    
+    @Column(name = "payment_method")
+    private String paymentMethod; // "CASH" or "BCA"
+    
+    @Column(name = "admin_fee")
+    private double adminFee;
+    
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
@@ -42,18 +51,16 @@ public class Order {
         calculateTotal();
     }
 
-    public List<OrderItem> getItems() {
-        return items;
-    }
-
-    public double getTotal() {
-        return total;
-    }
-
+    // Getters and Setters
     public int getId() { return id; }
+    public double getTotal() { return total; }
     public String getStatus() { return status; }
+    public String getOrderType() { return orderType; }
+    public String getPaymentMethod() { return paymentMethod; }
+    public double getAdminFee() { return adminFee; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public List<OrderItem> getItems() { return items; }
 
     public void setTotal(double total) { 
         this.total = total; 
@@ -61,6 +68,18 @@ public class Order {
     }
     public void setStatus(String status) { 
         this.status = status; 
+        this.updatedAt = LocalDateTime.now();
+    }
+    public void setOrderType(String orderType) { 
+        this.orderType = orderType; 
+        this.updatedAt = LocalDateTime.now();
+    }
+    public void setPaymentMethod(String paymentMethod) { 
+        this.paymentMethod = paymentMethod; 
+        this.updatedAt = LocalDateTime.now();
+    }
+    public void setAdminFee(double adminFee) { 
+        this.adminFee = adminFee; 
         this.updatedAt = LocalDateTime.now();
     }
     

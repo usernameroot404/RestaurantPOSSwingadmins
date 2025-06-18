@@ -1,10 +1,10 @@
 package com.restaurant;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.border.*;
+import javax.swing.table.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -19,31 +19,44 @@ public class OrderManagementPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Table setup
-        String[] columns = {"Order ID", "Total", "Status", "Created At", "Items", "Action"};
+        String[] columns = {
+            "ID", 
+            "Total", 
+            "Status", 
+            "Tipe Order", 
+            "Pembayaran", 
+            "Tanggal", 
+            "Aksi"
+        };
+        
         tableModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 5; // Only Action column is editable
+                return column == 6; // Only Action column is editable
             }
         };
         
         orderTable = new JTable(tableModel);
-        orderTable.setRowHeight(30);
-        orderTable.getColumnModel().getColumn(5).setCellRenderer(new ButtonRenderer());
-        orderTable.getColumnModel().getColumn(5).setCellEditor(new ButtonEditor(new JCheckBox()));
-
-        // Center alignment for all columns
+        orderTable.setRowHeight(35);
+        
+        // Center align all columns except Action
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < columns.length - 1; i++) {
             orderTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
         
+        // Custom renderer and editor for Action column
+        orderTable.getColumnModel().getColumn(6).setCellRenderer(new ButtonRenderer());
+        orderTable.getColumnModel().getColumn(6).setCellEditor(new ButtonEditor(new JCheckBox()));
+
         // Filter panel
-        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        filterPanel.add(new JLabel("Filter by Status:"));
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        filterPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 10, 5));
         
-        statusFilter = new JComboBox<>(new String[]{"All", "pending", "completed", "cancelled"});
+        filterPanel.add(new JLabel("Filter Status:"));
+        
+        statusFilter = new JComboBox<>(new String[]{"Semua", "pending", "completed", "cancelled"});
         statusFilter.addActionListener(e -> refreshOrderData());
         filterPanel.add(statusFilter);
         
@@ -63,135 +76,115 @@ public class OrderManagementPanel extends JPanel {
         String selectedStatus = (String) statusFilter.getSelectedItem();
         List<Order> orders;
         
-        if ("All".equals(selectedStatus)) {
+        if ("Semua".equals(selectedStatus)) {
             orders = orderDAO.getAllOrders();
         } else {
             orders = orderDAO.getOrdersByStatus(selectedStatus);
         }
         
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
         
         for (Order order : orders) {
-            StringBuilder items = new StringBuilder();
-            for (OrderItem item : order.getItems()) {
-                items.append(item.getMenuItem().getName())
-                    .append(" (x").append(item.getQuantity()).append("), ");
-            }
-            if (items.length() > 0) {
-                items.setLength(items.length() - 2); // Remove last comma
-            }
+            // Format display values
+            String orderType = order.getOrderType().equals("DINE_IN") ? 
+                "Makan di Tempat" : "Bawa Pulang";
+            
+            String payment = order.getPaymentMethod().equals("CASH") ? 
+                "Tunai" : "BCA (+$" + order.getAdminFee() + ")";
             
             tableModel.addRow(new Object[]{
                 order.getId(),
                 String.format("$%.2f", order.getTotal()),
                 capitalize(order.getStatus()),
+                orderType,
+                payment,
                 order.getCreatedAt().format(formatter),
-                items.toString(),
-                "View/Update"
+                "Detail"
             });
         }
     }
     
     private void showOrderDetails(Order order) {
         JDialog dialog = new JDialog();
-        dialog.setTitle("Order Details #" + order.getId());
+        dialog.setTitle("Detail Order #" + order.getId());
         dialog.setModal(true);
-        dialog.setSize(500, 400);
+        dialog.setSize(500, 450);
         dialog.setLayout(new BorderLayout(10, 10));
         
-        // Main panel with padding
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        JPanel mainPanel = new JPanel();
+        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         
-        // Vertical order info panel
-        JPanel infoPanel = new JPanel();
-        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
-        infoPanel.setBorder(BorderFactory.createTitledBorder("Order Information"));
+        // Order Information
+        JPanel infoPanel = new JPanel(new GridLayout(0, 2, 5, 5));
+        infoPanel.setBorder(BorderFactory.createTitledBorder("Informasi Order"));
         
-        // Order ID
-        JPanel idPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        idPanel.add(new JLabel("Order ID:"));
-        idPanel.add(new JLabel(String.valueOf(order.getId())));
-        infoPanel.add(idPanel);
+        addInfoRow(infoPanel, "ID Order:", String.valueOf(order.getId()));
+        addInfoRow(infoPanel, "Status:", createStatusComboBox(order));
+        addInfoRow(infoPanel, "Tipe Order:", order.getOrderType().equals("DINE_IN") ? "Makan di Tempat" : "Bawa Pulang");
+        addInfoRow(infoPanel, "Pembayaran:", order.getPaymentMethod().equals("CASH") ? 
+            "Tunai" : "BCA (+$" + order.getAdminFee() + ")");
+        addInfoRow(infoPanel, "Dibuat:", order.getCreatedAt().format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")));
+        addInfoRow(infoPanel, "Total:", String.format("$%.2f", order.getTotal()));
         
-        // Add vertical spacing
-        infoPanel.add(Box.createVerticalStrut(10));
+        // Items list
+        JTextArea itemsArea = new JTextArea(8, 30);
+        itemsArea.setEditable(false);
+        itemsArea.setBorder(BorderFactory.createTitledBorder("Daftar Menu"));
         
-        // Status
-        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        statusPanel.add(new JLabel("Status:"));
-        JComboBox<String> statusCombo = new JComboBox<>(new String[]{"pending", "completed", "cancelled"});
-        statusCombo.setSelectedItem(order.getStatus());
-        statusPanel.add(statusCombo);
-        infoPanel.add(statusPanel);
-        
-        // Add vertical spacing
-        infoPanel.add(Box.createVerticalStrut(10));
-        
-        // Created At
-        JPanel datePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        datePanel.add(new JLabel("Created At:"));
-        datePanel.add(new JLabel(order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
-        infoPanel.add(datePanel);
-        
-        // Add vertical spacing
-        infoPanel.add(Box.createVerticalStrut(10));
-        
-        // Total
-        JPanel totalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        totalPanel.add(new JLabel("Total:"));
-        totalPanel.add(new JLabel(String.format("$%.2f", order.getTotal())));
-        infoPanel.add(totalPanel);
-        
-        // Items table
-        String[] columns = {"Item", "Qty", "Price"};
-        DefaultTableModel itemsModel = new DefaultTableModel(columns, 0);
-        JTable itemsTable = new JTable(itemsModel);
-        itemsTable.setRowHeight(25);
-        
-        // Center align all columns in items table
-        DefaultTableCellRenderer itemsCenterRenderer = new DefaultTableCellRenderer();
-        itemsCenterRenderer.setHorizontalAlignment(JLabel.CENTER);
-        for (int i = 0; i < itemsTable.getColumnCount(); i++) {
-            itemsTable.getColumnModel().getColumn(i).setCellRenderer(itemsCenterRenderer);
-        }
-        
+        StringBuilder itemsText = new StringBuilder();
         for (OrderItem item : order.getItems()) {
-            itemsModel.addRow(new Object[] {
+            itemsText.append(String.format("- %s \t(x%d) \t$%.2f\n", 
                 item.getMenuItem().getName(),
                 item.getQuantity(),
-                String.format("$%.2f", item.getPriceAtOrder() * item.getQuantity())
-            });
+                item.getPriceAtOrder() * item.getQuantity()));
         }
+        itemsArea.setText(itemsText.toString());
         
-        // Buttons panel
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveBtn = new JButton("Save Changes");
+        // Buttons
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
+        JButton saveBtn = new JButton("Simpan Perubahan");
         saveBtn.addActionListener(e -> {
-            order.setStatus((String) statusCombo.getSelectedItem());
+            order.setStatus((String) ((JComboBox<?>) infoPanel.getComponent(3)).getSelectedItem());
             if (orderDAO.saveOrder(order)) {
-                JOptionPane.showMessageDialog(dialog, "Order updated successfully", "Success", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "Order berhasil diperbarui", "Sukses", JOptionPane.INFORMATION_MESSAGE);
                 refreshOrderData();
                 dialog.dispose();
             } else {
-                JOptionPane.showMessageDialog(dialog, "Failed to update order", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "Gagal memperbarui order", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
         
-        JButton cancelBtn = new JButton("Close");
-        cancelBtn.addActionListener(e -> dialog.dispose());
+        JButton closeBtn = new JButton("Tutup");
+        closeBtn.addActionListener(e -> dialog.dispose());
         
         buttonPanel.add(saveBtn);
-        buttonPanel.add(cancelBtn);
+        buttonPanel.add(closeBtn);
         
-        // Add components to main panel
-        mainPanel.add(infoPanel, BorderLayout.NORTH);
-        mainPanel.add(new JScrollPane(itemsTable), BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        // Add components
+        mainPanel.add(infoPanel);
+        mainPanel.add(new JScrollPane(itemsArea));
+        mainPanel.add(buttonPanel);
         
         dialog.add(mainPanel);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
+    }
+    
+    private void addInfoRow(JPanel panel, String label, String value) {
+        panel.add(new JLabel(label));
+        panel.add(new JLabel(value));
+    }
+    
+    private void addInfoRow(JPanel panel, String label, JComponent component) {
+        panel.add(new JLabel(label));
+        panel.add(component);
+    }
+    
+    private JComboBox<String> createStatusComboBox(Order order) {
+        JComboBox<String> comboBox = new JComboBox<>(new String[]{"pending", "completed", "cancelled"});
+        comboBox.setSelectedItem(order.getStatus());
+        return comboBox;
     }
     
     private String capitalize(String str) {
@@ -205,6 +198,8 @@ public class OrderManagementPanel extends JPanel {
     class ButtonRenderer extends JButton implements TableCellRenderer {
         public ButtonRenderer() {
             setOpaque(true);
+            setBackground(new Color(70, 130, 180));
+            setForeground(Color.WHITE);
         }
         
         @Override
@@ -239,11 +234,7 @@ public class OrderManagementPanel extends JPanel {
         public Object getCellEditorValue() {
             int orderId = (int) tableModel.getValueAt(editingRow, 0);
             Order order = orderDAO.getOrderById(orderId);
-            
-            if (button.getText().equals("View/Update")) {
-                showOrderDetails(order);
-            }
-            
+            showOrderDetails(order);
             return button.getText();
         }
     }
