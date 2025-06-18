@@ -38,7 +38,8 @@ public class MenuManagementPanel extends JPanel {
             menuTable.getColumnModel().getColumn(i).setCellRenderer(new CenterRenderer());
         }
 
-        JToolBar toolBar = new JToolBar();
+        // Top toolbar like ReportPanel
+        JPanel toolBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         JButton refreshBtn = new JButton("Refresh");
         refreshBtn.addActionListener(e -> refreshMenuData());
 
@@ -46,7 +47,6 @@ public class MenuManagementPanel extends JPanel {
         addBtn.addActionListener(e -> showAddEditDialog(null));
 
         toolBar.add(refreshBtn);
-        toolBar.addSeparator();
         toolBar.add(addBtn);
 
         add(toolBar, BorderLayout.NORTH);
@@ -82,7 +82,6 @@ public class MenuManagementPanel extends JPanel {
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Input components
         JTextField nameField = new JTextField();
         JTextField priceField = new JTextField();
         JTextField categoryField = new JTextField();
@@ -100,22 +99,20 @@ public class MenuManagementPanel extends JPanel {
             descriptionArea.setText(existingItem.getDescription());
         }
 
-        // Add components with consistent layout
         formPanel.add(createLabelFieldPanel("Name:", nameField));
         formPanel.add(Box.createVerticalStrut(10));
-        
+
         formPanel.add(createLabelFieldPanel("Price:", priceField));
         formPanel.add(Box.createVerticalStrut(10));
-        
+
         formPanel.add(createLabelFieldPanel("Category:", categoryField));
         formPanel.add(Box.createVerticalStrut(10));
-        
+
         formPanel.add(createLabelFieldPanel("Available:", availableCheck));
         formPanel.add(Box.createVerticalStrut(10));
-        
+
         formPanel.add(createLabelFieldPanel("Description:", descScroll));
 
-        // Button panel
         JPanel buttonPanel = new JPanel();
         JButton saveBtn = new JButton("Save");
         saveBtn.addActionListener(e -> {
@@ -134,7 +131,7 @@ public class MenuManagementPanel extends JPanel {
                     JOptionPane.showMessageDialog(dialog, "Failed to save menu item", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dialog, "Please enter a valid price", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dialog, "please enter menu properly", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
 
