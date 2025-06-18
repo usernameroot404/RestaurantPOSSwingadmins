@@ -22,46 +22,43 @@ public class MenuManagementPanel extends JPanel {
             public boolean isCellEditable(int row, int column) {
                 return column == 4 || column == 5;
             }
-            
+
             @Override
             public Class<?> getColumnClass(int column) {
                 return column == 4 ? Boolean.class : Object.class;
             }
         };
-        
+
         menuTable = new JTable(tableModel);
         menuTable.setRowHeight(30);
         menuTable.getColumnModel().getColumn(5).setCellRenderer(new ButtonRenderer());
         menuTable.getColumnModel().getColumn(5).setCellEditor(new ButtonEditor(new JCheckBox()));
-        
-        // Center alignment for all columns except Action
+
         for (int i = 0; i < 5; i++) {
             menuTable.getColumnModel().getColumn(i).setCellRenderer(new CenterRenderer());
         }
-        
-        // Toolbar
+
         JToolBar toolBar = new JToolBar();
         JButton refreshBtn = new JButton("Refresh");
         refreshBtn.addActionListener(e -> refreshMenuData());
-        
+
         JButton addBtn = new JButton("Add New Menu");
         addBtn.addActionListener(e -> showAddEditDialog(null));
-        
+
         toolBar.add(refreshBtn);
         toolBar.addSeparator();
         toolBar.add(addBtn);
-        
-        // Add components
+
         add(toolBar, BorderLayout.NORTH);
         add(new JScrollPane(menuTable), BorderLayout.CENTER);
-        
+
         refreshMenuData();
     }
-    
+
     private void refreshMenuData() {
         tableModel.setRowCount(0);
         List<MenuItem> items = menuItemDAO.getAllMenuItems(false);
-        
+
         for (MenuItem item : items) {
             tableModel.addRow(new Object[]{
                 item.getId(),
@@ -73,24 +70,28 @@ public class MenuManagementPanel extends JPanel {
             });
         }
     }
-    
+
     private void showAddEditDialog(MenuItem existingItem) {
         JDialog dialog = new JDialog();
         dialog.setTitle(existingItem == null ? "Add New Menu" : "Edit Menu");
         dialog.setModal(true);
-        dialog.setSize(400, 300);
+        dialog.setSize(400, 500);
         dialog.setLayout(new BorderLayout(10, 10));
-        
-        JPanel formPanel = new JPanel(new GridLayout(5, 2, 10, 10));
-        
-        // Form fields
+
+        JPanel formPanel = new JPanel();
+        formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
+        formPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Input components
         JTextField nameField = new JTextField();
         JTextField priceField = new JTextField();
         JTextField categoryField = new JTextField();
         JCheckBox availableCheck = new JCheckBox("Available");
-        JTextArea descriptionArea = new JTextArea(3, 20);
-        
-        // Populate if editing
+        JTextArea descriptionArea = new JTextArea(5, 20);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        JScrollPane descScroll = new JScrollPane(descriptionArea);
+
         if (existingItem != null) {
             nameField.setText(existingItem.getName());
             priceField.setText(String.valueOf(existingItem.getPrice()));
@@ -98,19 +99,23 @@ public class MenuManagementPanel extends JPanel {
             availableCheck.setSelected(existingItem.isAvailable());
             descriptionArea.setText(existingItem.getDescription());
         }
+
+        // Add components with consistent layout
+        formPanel.add(createLabelFieldPanel("Name:", nameField));
+        formPanel.add(Box.createVerticalStrut(10));
         
-        formPanel.add(new JLabel("Name:"));
-        formPanel.add(nameField);
-        formPanel.add(new JLabel("Price:"));
-        formPanel.add(priceField);
-        formPanel.add(new JLabel("Category:"));
-        formPanel.add(categoryField);
-        formPanel.add(new JLabel("Available:"));
-        formPanel.add(availableCheck);
-        formPanel.add(new JLabel("Description:"));
-        formPanel.add(new JScrollPane(descriptionArea));
+        formPanel.add(createLabelFieldPanel("Price:", priceField));
+        formPanel.add(Box.createVerticalStrut(10));
         
-        // Buttons
+        formPanel.add(createLabelFieldPanel("Category:", categoryField));
+        formPanel.add(Box.createVerticalStrut(10));
+        
+        formPanel.add(createLabelFieldPanel("Available:", availableCheck));
+        formPanel.add(Box.createVerticalStrut(10));
+        
+        formPanel.add(createLabelFieldPanel("Description:", descScroll));
+
+        // Button panel
         JPanel buttonPanel = new JPanel();
         JButton saveBtn = new JButton("Save");
         saveBtn.addActionListener(e -> {
@@ -121,7 +126,7 @@ public class MenuManagementPanel extends JPanel {
                 item.setCategory(categoryField.getText());
                 item.setAvailable(availableCheck.isSelected());
                 item.setDescription(descriptionArea.getText());
-                
+
                 if (menuItemDAO.saveMenuItem(item)) {
                     refreshMenuData();
                     dialog.dispose();
@@ -132,27 +137,34 @@ public class MenuManagementPanel extends JPanel {
                 JOptionPane.showMessageDialog(dialog, "Please enter a valid price", "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
-        
+
         JButton cancelBtn = new JButton("Cancel");
         cancelBtn.addActionListener(e -> dialog.dispose());
-        
+
         buttonPanel.add(saveBtn);
         buttonPanel.add(cancelBtn);
-        
+
         dialog.add(formPanel, BorderLayout.CENTER);
         dialog.add(buttonPanel, BorderLayout.SOUTH);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
-    
+
+    private JPanel createLabelFieldPanel(String labelText, JComponent field) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new JLabel(labelText), BorderLayout.NORTH);
+        panel.add(field, BorderLayout.CENTER);
+        return panel;
+    }
+
     private void deleteMenuItem(int id) {
         int confirm = JOptionPane.showConfirmDialog(
-            this, 
-            "Are you sure you want to delete this menu item?", 
-            "Confirm Delete", 
+            this,
+            "Are you sure you want to delete this menu item?",
+            "Confirm Delete",
             JOptionPane.YES_NO_OPTION
         );
-        
+
         if (confirm == JOptionPane.YES_OPTION) {
             if (menuItemDAO.deleteMenuItem(id)) {
                 refreshMenuData();
@@ -161,42 +173,40 @@ public class MenuManagementPanel extends JPanel {
             }
         }
     }
-    
-    // Button Renderer
+
     class ButtonRenderer extends JButton implements javax.swing.table.TableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
+                                                       boolean isSelected, boolean hasFocus, int row, int column) {
             setText((value == null) ? "" : value.toString());
             return this;
         }
     }
-    
-    // Button Editor
+
     class ButtonEditor extends DefaultCellEditor {
         private final JButton button;
         private int editingRow;
-        
+
         public ButtonEditor(JCheckBox checkBox) {
             super(checkBox);
             button = new JButton();
             button.setOpaque(true);
             button.addActionListener(e -> fireEditingStopped());
         }
-        
+
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value,
-                boolean isSelected, int row, int column) {
+                                                     boolean isSelected, int row, int column) {
             editingRow = row;
             button.setText((value == null) ? "" : value.toString());
             return button;
         }
-        
+
         @Override
         public Object getCellEditorValue() {
             int menuId = (int) tableModel.getValueAt(editingRow, 0);
             MenuItem item = menuItemDAO.getMenuItemById(menuId);
-            
+
             if (button.getText().equals("Edit/Delete")) {
                 int option = JOptionPane.showOptionDialog(
                     MenuManagementPanel.this,
@@ -208,22 +218,21 @@ public class MenuManagementPanel extends JPanel {
                     new Object[]{"Edit", "Delete", "Cancel"},
                     "Edit"
                 );
-                
-                if (option == 0) { // Edit
+
+                if (option == 0) {
                     showAddEditDialog(item);
-                } else if (option == 1) { // Delete
+                } else if (option == 1) {
                     deleteMenuItem(item.getId());
                 }
             }
-            
+
             return button.getText();
         }
     }
-    
-    // Center alignment renderer for the table
+
     class CenterRenderer extends DefaultTableCellRenderer {
         public CenterRenderer() {
-            setHorizontalAlignment(JLabel.CENTER); // Align text to center
+            setHorizontalAlignment(JLabel.CENTER);
         }
     }
 }

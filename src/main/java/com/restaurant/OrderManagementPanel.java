@@ -33,8 +33,10 @@ public class OrderManagementPanel extends JPanel {
         orderTable.getColumnModel().getColumn(5).setCellEditor(new ButtonEditor(new JCheckBox()));
 
         // Center alignment for all columns
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         for (int i = 0; i < 5; i++) {
-            orderTable.getColumnModel().getColumn(i).setCellRenderer(new CenterRenderer());
+            orderTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
         
         // Filter panel
@@ -92,30 +94,67 @@ public class OrderManagementPanel extends JPanel {
     
     private void showOrderDetails(Order order) {
         JDialog dialog = new JDialog();
-        dialog.setTitle("Order #" + order.getId() + " Details");
+        dialog.setTitle("Order Details #" + order.getId());
         dialog.setModal(true);
         dialog.setSize(500, 400);
         dialog.setLayout(new BorderLayout(10, 10));
         
-        // Order info
-        JPanel infoPanel = new JPanel(new GridLayout(4, 2, 10, 10));
-        infoPanel.add(new JLabel("Order ID:"));
-        infoPanel.add(new JLabel(String.valueOf(order.getId())));
-        infoPanel.add(new JLabel("Status:"));
+        // Main panel with padding
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
         
+        // Vertical order info panel
+        JPanel infoPanel = new JPanel();
+        infoPanel.setLayout(new BoxLayout(infoPanel, BoxLayout.Y_AXIS));
+        infoPanel.setBorder(BorderFactory.createTitledBorder("Order Information"));
+        
+        // Order ID
+        JPanel idPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        idPanel.add(new JLabel("Order ID:"));
+        idPanel.add(new JLabel(String.valueOf(order.getId())));
+        infoPanel.add(idPanel);
+        
+        // Add vertical spacing
+        infoPanel.add(Box.createVerticalStrut(10));
+        
+        // Status
+        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        statusPanel.add(new JLabel("Status:"));
         JComboBox<String> statusCombo = new JComboBox<>(new String[]{"pending", "completed", "cancelled"});
         statusCombo.setSelectedItem(order.getStatus());
-        infoPanel.add(statusCombo);
+        statusPanel.add(statusCombo);
+        infoPanel.add(statusPanel);
         
-        infoPanel.add(new JLabel("Total:"));
-        infoPanel.add(new JLabel(String.format("$%.2f", order.getTotal())));
-        infoPanel.add(new JLabel("Created At:"));
-        infoPanel.add(new JLabel(order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        // Add vertical spacing
+        infoPanel.add(Box.createVerticalStrut(10));
+        
+        // Created At
+        JPanel datePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        datePanel.add(new JLabel("Created At:"));
+        datePanel.add(new JLabel(order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))));
+        infoPanel.add(datePanel);
+        
+        // Add vertical spacing
+        infoPanel.add(Box.createVerticalStrut(10));
+        
+        // Total
+        JPanel totalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        totalPanel.add(new JLabel("Total:"));
+        totalPanel.add(new JLabel(String.format("$%.2f", order.getTotal())));
+        infoPanel.add(totalPanel);
         
         // Items table
         String[] columns = {"Item", "Qty", "Price"};
         DefaultTableModel itemsModel = new DefaultTableModel(columns, 0);
         JTable itemsTable = new JTable(itemsModel);
+        itemsTable.setRowHeight(25);
+        
+        // Center align all columns in items table
+        DefaultTableCellRenderer itemsCenterRenderer = new DefaultTableCellRenderer();
+        itemsCenterRenderer.setHorizontalAlignment(JLabel.CENTER);
+        for (int i = 0; i < itemsTable.getColumnCount(); i++) {
+            itemsTable.getColumnModel().getColumn(i).setCellRenderer(itemsCenterRenderer);
+        }
         
         for (OrderItem item : order.getItems()) {
             itemsModel.addRow(new Object[] {
@@ -125,8 +164,8 @@ public class OrderManagementPanel extends JPanel {
             });
         }
         
-        // Buttons
-        JPanel buttonPanel = new JPanel();
+        // Buttons panel
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton saveBtn = new JButton("Save Changes");
         saveBtn.addActionListener(e -> {
             order.setStatus((String) statusCombo.getSelectedItem());
@@ -145,9 +184,12 @@ public class OrderManagementPanel extends JPanel {
         buttonPanel.add(saveBtn);
         buttonPanel.add(cancelBtn);
         
-        dialog.add(infoPanel, BorderLayout.NORTH);
-        dialog.add(new JScrollPane(itemsTable), BorderLayout.CENTER);
-        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        // Add components to main panel
+        mainPanel.add(infoPanel, BorderLayout.NORTH);
+        mainPanel.add(new JScrollPane(itemsTable), BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.add(mainPanel);
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
     }
@@ -160,9 +202,13 @@ public class OrderManagementPanel extends JPanel {
     }
     
     // Button Renderer
-    class ButtonRenderer extends JButton implements javax.swing.table.TableCellRenderer {
+    class ButtonRenderer extends JButton implements TableCellRenderer {
+        public ButtonRenderer() {
+            setOpaque(true);
+        }
+        
         @Override
-        public java.awt.Component getTableCellRendererComponent(JTable table, Object value,
+        public Component getTableCellRendererComponent(JTable table, Object value,
                 boolean isSelected, boolean hasFocus, int row, int column) {
             setText((value == null) ? "" : value.toString());
             return this;
@@ -182,7 +228,7 @@ public class OrderManagementPanel extends JPanel {
         }
         
         @Override
-        public java.awt.Component getTableCellEditorComponent(JTable table, Object value,
+        public Component getTableCellEditorComponent(JTable table, Object value,
                 boolean isSelected, int row, int column) {
             editingRow = row;
             button.setText((value == null) ? "" : value.toString());
@@ -199,13 +245,6 @@ public class OrderManagementPanel extends JPanel {
             }
             
             return button.getText();
-        }
-    }
-    
-    // Center alignment renderer for the table
-    class CenterRenderer extends DefaultTableCellRenderer {
-        public CenterRenderer() {
-            setHorizontalAlignment(JLabel.CENTER); // Align text to center
         }
     }
 }
